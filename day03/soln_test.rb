@@ -86,7 +86,10 @@ class Solution
   def p2_number_of_steps
     shortest_steps = Float::INFINITY
     each_crossings do |i, j|
-      total = traverse(@line1, i, j) + traverse(@line2, i, j)
+      # total = traverse(@line1, i, j) +
+      #   traverse(@line2, i, j)
+      total = traverse_optimized(@line1, i, j) +
+        traverse_optimized(@line2, i, j)
 
       if shortest_steps > total
         shortest_steps = total
@@ -151,6 +154,47 @@ class Solution
       break if found
     end
     moved
+  end
+
+  def traverse_optimized(line, dst_x, dst_y)
+    total_steps = 0
+    x, y = 0, 0
+    x1, y1 = 0, 0
+    line.each do |direction|
+      distance = direction[1..-1].to_i
+      dir = direction[0]
+      if dir == "R"
+        x1 = x + distance
+      elsif dir == "L"
+        x1 = x - distance
+      elsif dir == "U"
+        y1 = y + distance
+      elsif dir == "D"
+        y1 = y - distance
+      end
+
+      if in_line?(x, y, x1, y1, dst_x, dst_y)
+        total_steps += (dst_x - x).abs + (dst_y - y).abs
+        return total_steps
+      else
+        total_steps += distance
+      end
+
+      x = x1
+      y = y1
+    end
+  end
+
+  def in_line?(x, y, x1, y1, dst_x, dst_y)
+    if y == y1 && y == dst_y
+      (x1 - x).abs >= (dst_x - x).abs &&
+        (x1 - x).abs >= (x1 - dst_x).abs
+    elsif x == x1 && x == dst_x
+      (y1 - y).abs >= (dst_y - y).abs &&
+        (y1 - y).abs >= (y1 - dst_y).abs
+    else
+      false
+    end
   end
 end
 
