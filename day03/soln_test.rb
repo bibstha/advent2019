@@ -95,55 +95,6 @@ class Solution
     end
   end
 
-  # Optimized solution below in traverse_optimized
-  def traverse(line, dst_x, dst_y)
-    x, y = [0, 0]
-    moved = 0
-    found = false
-    line.each do |direction|
-      distance = direction[1..-1].to_i
-      if direction[0] == "R"
-        (1..distance).each do |i|
-          x = x + 1
-          moved += 1
-          if x == dst_x && y == dst_y
-            found = true
-            break
-          end
-        end
-      elsif direction[0] == "L"
-        (1..distance).each do |i|
-          x = x - 1
-          moved += 1
-          if x == dst_x && y == dst_y
-            found = true
-            break
-          end
-        end
-      elsif direction[0] == "U"
-        (1..distance).each do |i|
-          y = y + 1
-          moved += 1
-          if x == dst_x && y == dst_y
-            found = true
-            break
-          end
-        end
-      elsif direction[0] == "D"
-        (1..distance).each do |i|
-          y = y - 1
-          moved += 1
-          if x == dst_x && y == dst_y
-            found = true
-            break
-          end
-        end
-      end
-      break if found
-    end
-    moved
-  end
-
   def traverse_optimized(line, dst_x, dst_y)
     total_steps = 0
     x, y = 0, 0
