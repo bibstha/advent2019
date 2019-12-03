@@ -1,35 +1,22 @@
 require 'minitest/autorun'
+require 'minitest/pride'
 
 class Solution
-  def initialize(file)
-    @f = file
-  end
-
-  def read_multi_line(sep = nil)
-    @f.map do |line|
-      line.chomp!
-      if sep
-        line.split(sep)
-      else
-        line
-      end
-    end
-  end
-
-  def one_line(sep)
-    read_multi_line(sep).flatten
-  end
-
-  def main()
-    @line1, @line2 = read_multi_line(",")
-
+  def initialize(lines)
+    @line1, @line2 = lines
     @points = Hash.new { |h, k| h[k] = Hash.new(nil) }
-
     mark_map
+  end
 
+  def part1
     p1_shortest_distance
+  end
+
+  def part2
     p2_number_of_steps
   end
+
+  private
 
   def mark_map
     mark_line(@line1, 1)
@@ -80,7 +67,7 @@ class Solution
         shortest_distance = manhattan_dist
       end
     end
-    puts "p1: Shortest distance: #{shortest_distance}"
+    shortest_distance
   end
 
   def p2_number_of_steps
@@ -95,7 +82,7 @@ class Solution
         shortest_steps = total
       end
     end
-    puts "p2: Shortest steps: #{shortest_steps}"
+    shortest_steps
   end
 
   def each_crossings(&blk)
@@ -108,6 +95,7 @@ class Solution
     end
   end
 
+  # Optimized solution below in traverse_optimized
   def traverse(line, dst_x, dst_y)
     x, y = [0, 0]
     moved = 0
@@ -199,25 +187,62 @@ class Solution
 end
 
 class SolutionTest < Minitest::Test
+  POS = DATA.pos
+
   def setup
-    @debug = false
+    DATA.pos = POS
   end
 
-  def test_part1
-    if @debug
-      Solution.new(DATA).main
-    else
-      Solution.new(File.new("input")).main
+  def test_part1_debug
+    lines = read_multi_line(DATA, ",")
+    assert_equal 6, Solution.new(lines[0, 2]).part1
+    assert_equal 159, Solution.new(lines[3, 2]).part1
+    assert_equal 135, Solution.new(lines[6, 2]).part1
+  end
+
+  def test_part1_real
+    file = File.new("input")
+    lines = read_multi_line(file, ",")
+    file.close
+
+    puts "Part1 Solution: #{Solution.new(lines).part1}"
+  end
+
+  def test_part2_debug
+    lines = read_multi_line(DATA, ",")
+    assert_equal 30, Solution.new(lines[0, 2]).part2
+    assert_equal 610, Solution.new(lines[3, 2]).part2
+    assert_equal 410, Solution.new(lines[6, 2]).part2
+  end
+
+  def test_part2_real
+    file = File.new("input")
+    lines = read_multi_line(file, ",")
+    file.close
+
+    puts "Part2 Solution: #{Solution.new(lines).part2}"
+  end
+
+  private
+
+  def read_multi_line(file, sep = nil)
+    file.map do |line|
+      line.chomp!
+      if sep
+        line.split(sep)
+      else
+        line
+      end
     end
   end
 end
 
 __END__
-R98,U47,R26,D63,R33,U87,L62,D20,R33,U53,R51
-U98,R91,D20,R16,D67,R40,U7,R15,U6,R7
+R8,U5,L5,D3
+U7,R6,D4,L4
 
 R75,D30,R83,U83,L12,D49,R71,U7,L72
 U62,R66,U55,R34,D71,R55,D58,R83
 
-R8,U5,L5,D3
-U7,R6,D4,L4
+R98,U47,R26,D63,R33,U87,L62,D20,R33,U53,R51
+U98,R91,D20,R16,D67,R40,U7,R15,U6,R7
