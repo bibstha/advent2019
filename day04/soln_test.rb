@@ -1,20 +1,19 @@
 a1 = 254032
 a2 = 789860
 
-def qualify?(x)
+ans1 = 0
+ans2 = 0
+
+total = (a1..a2).each do |x|
   chars = x.to_s.chars
   sorted = chars.sort
-  chars == sorted && (
-    # part 1
-    chars.slice_when { |a, b| a!= b }.count < 6
+  next if chars != sorted
 
-    # part 2
-    # chars.slice_when { |a, b| a != b }.any? { |x| x.size == 2 }
-  )
+  slices = chars.slice_when { |a, b| a!= b }.to_a
+
+  ans1 += 1 if slices.count < 6
+  ans2 += 1 if slices.any? { |x| x.size == 2 }
 end
 
-total = (a1..a2).count do |x|
-  qualify?(x)
-end
-
-puts total
+puts ans1
+puts ans2
