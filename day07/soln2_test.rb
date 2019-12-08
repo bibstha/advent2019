@@ -14,11 +14,12 @@ class Amplifier
 end
 
 class IntcodeComputer
-  attr_accessor :input_iterator
+  attr_accessor :input_iterator, :memory, :current_instruction_pos
 
   def initialize(software)
     @memory = software.dup
-    @tokenizer = Tokenizer.new(@memory)
+    # @tokenizer = Tokenizer.new(@memory, )
+    @current_instruction_pos = 0
   end
 
   def output_handler=(handler)
@@ -31,55 +32,72 @@ class IntcodeComputer
   end
 end
 
+IntcodePositionTracker = Struct.new(:position)
+
 class Tokenizer
-  def initialize(memory)
+  MAX_ARG_SIZE = 3
+
+  def initialize(memory, input_iterator, computer)
     @memory = memory
+    @input_iterator = input_iterator
+    @position_tracker = IntcodePositionTracker.new(0)
   end
 
   def intcode_iterator
+    current_pos = @position_tracker.position
+    intcode_value = @memory[current_pos]
+    args = @memory[current_pos + 1, MAX_ARG_SIZE]
+    Intcode.new(intcode_value, args, @memory, @input_iterator, @position_tracker)
   end
 end
 
 class Intcode
-  attr_reader :output, :jump_to
+  attr_reader :output, :jump_by, :jump_to, :halt
 
-  def initialize(intcode_value, args, memory, computer)
+  def initialize(intcode_value, args, memory, input_iterator, position_tracker)
     @intcode_value = sprintf("%05d", intcode_value)
     @args = args
     @memory = memory
-    @computer = computer
+    @input_iterator = input_iterator
+    @position_tracker = position_tracker
   end
 
   def run
     @output = nil
     @jump_to = nil
+    @halt = false
 
     if opcode == "01"
+      @int_size = 4
       @memory[@args[2]] = param(1) + param(2)
     elsif opcode == "02"
+      @int_size = 4
       @memory[@args[2]] = param(1) * param(2)
     elsif opcode == "03"
-      input = @computer.input_iterator.next
+      @int_size = 2
+      input = @input_iterator.next
       @memory[@args[0]] = input
     elsif opcode == "04"
+      @int_size = 2
       @output = param(1)
     elsif opcode == "05"
+      @int_size = 3
       @jump_to = param(2) if param(1) != 0
     elsif opcode == "06"
+      @int_size = 3
       @jump_to = param(2) if param(1) == 0
     elsif opcode == "07"
-      @memory[@args[2]] = if param(1) < param(2)
-        1
-      else
-        0
-      end
+      @int_size = 4
+      @memory[@args[2]] = param(1) < param(2) ? 1 : 0
     elsif opcode == "08"
-      @memory[@args[2]] = if param(1) == param(2)
-        1
-      else
-        0
-      end
+      @int_size = 4
+      @memory[@args[2]] = param(1) == param(2) ? 1 : 0
+    elsif opcode == "99"
+      @int_size = 1
+      @halt = true
     end
+
+    move_position
   end
 
   def opcode
@@ -94,14 +112,22 @@ class Intcode
     param = @memory[@args[num - 1]] if mode == "positional"
     param
   end
+
+  def move_position
+    if @jump_to
+      @position_tracker.position = @jump_to
+    else
+      @position_tracker.position += @int_size
+    end
+  end
 end
 
 
 class MyTest < Minitest::Test
   def test_intcode
-    computer = IntcodeComputer.new([])
+    input_iterator = [].each
     memory = [5,6,7,8]
-    intcode = Intcode.new(1001, [1, 1, 1], memory, computer)
+    intcode = Intcode.new(1001, [1, 1, 1], memory, input_iterator)
     assert_equal "01", intcode.opcode
     assert_equal 6, intcode.param(1)
     assert_equal 1, intcode.param(2)
@@ -109,107 +135,121 @@ class MyTest < Minitest::Test
   end
 
   def test_intcode_opcode_01
-    computer = IntcodeComputer.new([])
+    input_iterator = [].each
     memory = [5,6,7,8]
-    intcode = Intcode.new(1001, [1, 1, 1], memory, computer)
+    intcode = Intcode.new(1001, [1, 1, 1], memory, input_iterator)
     assert_equal 6, memory[1]
     intcode.run
     assert_equal 7, memory[1]
   end
 
   def test_intcode_opcode_02
-    computer = IntcodeComputer.new([])
+    input_iterator = [].each
     memory = [5,6,7,8]
-    intcode = Intcode.new(1002, [1, 1, 3], memory, computer)
+    intcode = Intcode.new(1002, [1, 1, 3], memory, input_iterator)
     assert_equal 8, memory[3]
     intcode.run
     assert_equal 6, memory[3]
   end
 
   def test_intcode_opcode_03
-    input = [42]
-    computer = IntcodeComputer.new([])
-    computer.input_iterator = input.each
+    input_iterator = [42].each
 
     memory = [5,6,7,8]
-    intcode = Intcode.new(1003, [2], memory, computer)
+    intcode = Intcode.new(1003, [2], memory, input_iterator)
     intcode.run
     assert_equal [5,6,42,8], memory
   end
 
   def test_intcode_opcode_04
-    computer = IntcodeComputer.new([])
+    input_iterator = [].each
     memory = [5,6,7,8]
-    intcode = Intcode.new(1004, [2], memory, computer)
+    intcode = Intcode.new(1004, [2], memory, input_iterator)
     intcode.run
     assert_equal [5,6,7,8], memory
     assert_equal 7, intcode.output
   end
 
   def test_intcode_opcode_05
-    computer = IntcodeComputer.new([])
+    input_iterator = [].each
     memory = [5,6,7,8]
-    intcode = Intcode.new(1105, [1, 3], memory, computer)
+    intcode = Intcode.new(1105, [1, 3], memory, input_iterator)
     intcode.run
     assert_equal [5,6,7,8], memory
     assert_equal 3, intcode.jump_to
 
-    intcode = Intcode.new(1105, [0, 3], memory, computer)
+    intcode = Intcode.new(1105, [0, 3], memory, input_iterator)
     intcode.run
     assert_equal [5,6,7,8], memory
     assert_nil intcode.jump_to
   end
 
   def test_intcode_opcode_06
-    computer = IntcodeComputer.new([])
+    input_iterator = [].each
     memory = [5,6,7,8]
-    intcode = Intcode.new(1106, [0, 3], memory, computer)
+    intcode = Intcode.new(1106, [0, 3], memory, input_iterator)
     intcode.run
     assert_equal [5,6,7,8], memory
     assert_equal 3, intcode.jump_to
 
-    intcode = Intcode.new(1106, [1, 3], memory, computer)
+    intcode = Intcode.new(1106, [1, 3], memory, input_iterator)
     intcode.run
     assert_equal [5,6,7,8], memory
     assert_nil intcode.jump_to
   end
 
   def test_intcode_opcode_07
-    computer = IntcodeComputer.new([])
+    input_iterator = [].each
     memory = [5,6,7,8]
-    intcode = Intcode.new(1107, [0, 1, 3], memory, computer)
+    intcode = Intcode.new(1107, [0, 1, 3], memory, input_iterator)
     intcode.run
     assert_equal [5,6,7,1], memory
     assert_nil intcode.jump_to
 
-    intcode = Intcode.new(1107, [1, 1, 3], memory, computer)
+    intcode = Intcode.new(1107, [1, 1, 3], memory, input_iterator)
     intcode.run
     assert_equal [5,6,7,0], memory
     assert_nil intcode.jump_to
 
-    intcode = Intcode.new(1107, [2, 1, 3], memory, computer)
+    intcode = Intcode.new(1107, [2, 1, 3], memory, input_iterator)
     intcode.run
     assert_equal [5,6,7,0], memory
     assert_nil intcode.jump_to
   end
 
   def test_intcode_opcode_08
-    computer = IntcodeComputer.new([])
+    input_iterator = [].each
     memory = [5,6,7,8]
-    intcode = Intcode.new(1108, [0, 0, 3], memory, computer)
+    intcode = Intcode.new(1108, [0, 0, 3], memory, input_iterator)
     intcode.run
     assert_equal [5,6,7,1], memory
     assert_nil intcode.jump_to
 
-    intcode = Intcode.new(1108, [1, 0, 3], memory, computer)
+    intcode = Intcode.new(1108, [1, 0, 3], memory, input_iterator)
     intcode.run
     assert_equal [5,6,7,0], memory
     assert_nil intcode.jump_to
 
-    intcode = Intcode.new(1108, [0, 1, 3], memory, computer)
+    intcode = Intcode.new(1108, [0, 1, 3], memory, input_iterator)
     intcode.run
     assert_equal [5,6,7,0], memory
     assert_nil intcode.jump_to
+  end
+end
+
+class TokenizerTest < Minitest::Test
+  def test_initial_token
+    memory = [1108, 0, 0, 3, 99]
+    input_iterator = [].each
+    position_tracker = IntcodePositionTracker.new(0)
+
+    tokenizer = Tokenizer.new(memory, input_iterator, position_tracker)
+
+    p intcode = tokenizer.intcode_iterator
+    intcode.run
+
+    p intcode = tokenizer.intcode_iterator
+    intcode.run
   end
 end
 
