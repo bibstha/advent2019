@@ -36,6 +36,8 @@ class Arcade
   end
 
   def update_input
+    puts "Paddle #{@paddle_pos}"
+    puts "Ball #{@ball_pos}"
     if @paddle_pos.nil?
       @input_iterator.right
     elsif @paddle_pos < @ball_pos
@@ -69,12 +71,29 @@ class Arcade
 end
 
 class InputIterator
-  def initialize(default:)
+  def initialize(default:, playable: false)
     @value = default
+    @playable = playable
   end
 
   def next
-    @value
+    if playable
+      @value
+    else
+      input = STDIN.getch
+      val = case input
+      when 'a'
+        -1
+      when 'd'
+        1
+      when "\u0003"
+        puts "Exiting"
+        exit
+      else
+        0
+      end
+      @value = val
+    end
   end
 
   def left
