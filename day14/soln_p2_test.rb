@@ -1,3 +1,12 @@
+# Notes
+# Looking at Reddit
+# resolution could be done by assigning
+# int value for ORE to 0
+# and items that directly come out of ORE as 1
+# and so forth
+# This makes resolution simple
+# Another simple solution is given by
+# https://github.com/jeffjeffjeffrey/advent-of-code/blob/master/2019/day_14.ipynb
 require 'minitest/autorun'
 require 'set'
 
