@@ -1,16 +1,10 @@
 require 'minitest/autorun'
 require 'set'
-require 'pry-byebug'
 
 Item = Struct.new(:name, :quantity) do
   def to_s
     "#{quantity} #{name}"
   end
-
-  # def ==(other)
-  #   name == other.name &&
-  #     quantity == other.quantity
-  # end
 end
 
 Reaction = Struct.new(:input_items, :output_item) do
@@ -33,17 +27,22 @@ end
 class Resolver
   attr_reader :waste
 
-  def initialize(reactions, stock = [], graph_full, fuel_rxn)
+  def initialize(reactions, stock = [], graph_full, fuel_rxn, fuel_count: 1)
     @stock = stock.map(&:dup)
     @waste = []
 
     @reactions = reactions
     @graph_full = graph_full
 
-    @resolved_rxn = Reaction.new(
-      fuel_rxn.input_items.map(&:dup),
-      fuel_rxn.output_item.dup
-    )
+    input_items = fuel_rxn.input_items.map(&:dup)
+    input_items.each do |item|
+      item.quantity *= fuel_count
+    end
+
+    output_item = fuel_rxn.output_item.dup
+    output_item.quantity *= fuel_count
+
+    @resolved_rxn = Reaction.new(input_items, output_item)
   end
 
   def ore_count
@@ -147,6 +146,10 @@ class Resolver
 end
 
 class Solution
+  MAX = 1_000_000_000_000
+
+  attr_reader :fuel_count
+
   def initialize(input)
     @input = input
     @rxns = reactions(input)
@@ -174,30 +177,19 @@ class Solution
   end
 
   def run
-    loop do
-      puts @waste.join(", ")
-      @fuel_count += 1
-      resolver = Resolver.new(@rxns, @waste, @graph_full, @fuel_rxn)
+    resolver = nil
+    fuels = (0..MAX).bsearch do |fuel_count|
+      resolver = Resolver.new(@rxns, @waste, @graph_full, @fuel_rxn, fuel_count: fuel_count)
       resolver.resolve
-
-      @waste = resolver.waste
-      @ore_count += resolver.ore_count
-
-      if @all_wastes.key?(@waste)
-        break
-      end
-
-      @all_wastes[@waste] = [@fuel_count, @ore_count]
+      resolver.ore_count > MAX
     end
+
+    @fuel_count = fuels - 1 # fuels has just over MAX
+    @ore_count = resolver.ore_count
   end
 
   def to_s
-    "Fuels #{@fuel_count}, Ore_count #{@ore_count}, Waste #{@waste}"
-  end
-
-  def trillian_ore_fuel
-    a = 1_000_000_000_000
-    (a * @fuel_count) / @ore_count
+    "Fuels #{@fuel_count}, Ore_count #{@ore_count}" # , Waste #{@waste}"
   end
 
   private
@@ -241,6 +233,15 @@ class Solution
 end
 
 class ResolverTest < Minitest::Test
+  def test_p2
+    input = File.readlines("input_eg1").map(&:chomp)
+    rxns = reactions(input)
+    resolver = Resolver.new(rxns, fuel_cnt: 2)
+    resolver.resolve
+
+    puts resolver.ore_count
+  end
+
   def test_eg1
     input = File.readlines("input_eg1").map(&:chomp)
     rxns = reactions(input)
@@ -326,15 +327,16 @@ class SolnTest < Minitest::Test
 
     soln.run
     puts soln
-    puts soln.trillian_ore_fuel
+    # (target: 460664)
   end
 
+  # Part2 solution
   def test_neg_part2
     input = File.readlines("input").map(&:chomp)
     soln = Solution.new(input)
 
     soln.run
     puts soln
-    puts soln.trillian_ore_fuel
+    assert_equal 1376631, soln.fuel_count
   end
 end

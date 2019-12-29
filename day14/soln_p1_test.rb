@@ -49,7 +49,7 @@ class Solution
   Node = Struct.new(:name, :children)
   attr_reader :final_reaction
 
-  def initialize(reactions)
+  def initialize(reactions, fuel_count: 1)
     @graph = Hash.new { |h, k| h[k] = Set.new }
     @reactions = reactions
     reactions.each do |reaction|
@@ -63,7 +63,10 @@ class Solution
   end
 
   def resolve
-    fuel_rxn = @reactions.find { |rxn| rxn.output_item.name == "FUEL" }.dup
+    rxn = @reactions.find { |rxn| rxn.output_item.name == "FUEL" }
+    input_items = rxn.input_items.map(&:dup)
+    input_items.each 
+    fuel_rxn = 
 
     loop do
       items = resolve_item?(fuel_rxn)
@@ -155,7 +158,7 @@ class SolnTest < Minitest::Test
   def test_eg1
     input = File.readlines("input_eg1").map(&:chomp)
     rxns = reactions(input)
-    soln = Solution.new(rxns)
+    soln = Solution.new(rxns, fuel_count: 1)
 
     final_ore_input = soln.final_reaction.input_items.first
     assert_equal 31, final_ore_input.quantity
